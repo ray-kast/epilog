@@ -4,6 +4,10 @@ pub use crate::{
 };
 pub use std::{borrow::Cow, collections::HashMap};
 
+// TODO: property test me for validity in unify tests
+// TODO: property test me for commutativity in unify tests
+// TODO: property test me for identity in unify tests
+// TODO: property test me for unify_with vs .sub.unify in unify tests
 pub trait Unify<K: Clone, V: Clone> {
     type Error;
 
@@ -14,7 +18,8 @@ pub trait Unify<K: Clone, V: Clone> {
     }
 }
 
-// TODO: test me
+// TODO: unit test me
+// TODO: property test me
 impl<K: Clone, V: Clone, E, T: Unify<K, V, Error = E>> Unify<K, V> for Option<T> {
     type Error = E;
 
@@ -27,7 +32,8 @@ impl<K: Clone, V: Clone, E, T: Unify<K, V, Error = E>> Unify<K, V> for Option<T>
     }
 }
 
-// TODO: test me
+// TODO: unit test me
+// TODO: property test me
 impl<K: Clone, V: Clone, E, T: Unify<K, V, Error = E>> Unify<K, V> for Vec<T> {
     type Error = E;
 
@@ -53,8 +59,9 @@ impl<K: Clone, V: Clone, E, T: Unify<K, V, Error = E>> Unify<K, V> for Vec<T> {
     }
 }
 
-// TODO: test me
-impl<K: Clone, V: Clone, E, K2: Unify<K, V, Error = E>, V2: Unify<K, V, Error = E>> Unify<K, V>
+// TODO: unit test me
+// TODO: property test me
+impl<K: Clone, V: Clone, E, K2: Eq + Hash, V2: Unify<K, V, Error = E>> Unify<K, V>
     for HashMap<K2, V2>
 {
     type Error = E;
@@ -69,11 +76,14 @@ impl<K: Clone, V: Clone, E, K2: Unify<K, V, Error = E>, V2: Unify<K, V, Error = 
             return Bottom;
         }
 
-        for ((la, lb), (ra, rb)) in self.iter().zip(rhs.iter()) {
-            match la.unify_with(sub, ra).and_then(|s| lb.unify_with(s, rb)) {
-                UOk(s) => sub = s,
-                Bottom => return Bottom,
-                UErr(e) => return UErr(e),
+        for (l, r) in self.iter().map(|(k, v)| (v, rhs.get(k))) {
+            match r {
+                Some(r) => match l.unify_with(sub, r) {
+                    UOk(s) => sub = s,
+                    Bottom => return Bottom,
+                    UErr(e) => return UErr(e),
+                },
+                None => return Bottom,
             }
         }
 

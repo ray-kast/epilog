@@ -2,8 +2,14 @@ use crate::{
     prelude_internal::*,
     sub::{CowSub, Sub, SubWith},
     unify::Unify,
+    var::{FreeVars, FreshVars},
 };
-use std::{collections::HashMap, convert::TryFrom};
+use std::{
+    cell::Cell,
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
+    iter,
+};
 
 #[derive(Clone, Debug)]
 pub enum Ast<L, V> {
@@ -11,32 +17,56 @@ pub enum Ast<L, V> {
     Var(Var<V>),
     List(Term<L, V>, Vec<Ast<L, V>>),
     /// NOTE: do NOT rely on unification order for this
-    Dict(Term<L, V>, HashMap<Term<L, V>, Ast<L, V>>),
+    Dict(Term<L, V>, HashMap<L, Ast<L, V>>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Term<L, V> {
     Lit(L),
     Var(Var<V>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Var<V> {
     User(V),
-    Auto(u64),
+    Auto(u32),
 }
 
+#[derive(Debug)]
+pub struct VarSource(Cell<u32>);
+
+#[derive(Debug, PartialEq)]
 pub enum Error {
     BadTermSub, // Attempt to substitute an Ast for a Term
 }
 
+// TODO: unit test me
+// TODO: property test m
+impl<L: Eq + Hash, V: Eq + Hash> PartialEq<Ast<L, V>> for Ast<L, V> {
+    fn eq(&self, rhs: &Self) -> bool {
+        match (self, rhs) {
+            (Ast::Lit(l), Ast::Lit(r)) => l.eq(r),
+            (Ast::Var(l), Ast::Var(r)) => l.eq(r),
+            (Ast::List(lt, ll), Ast::List(rt, rl)) => lt.eq(rt) && ll.eq(rl),
+            (Ast::Dict(lt, ld), Ast::Dict(rt, rd)) => lt.eq(rt) && ld.eq(rd),
+            (_, _) => false,
+        }
+    }
+}
+
+impl<L: Eq + Hash, V: Eq + Hash> Eq for Ast<L, V> {}
+
 impl<L, V> From<Term<L, V>> for Ast<L, V> {
     fn from(term: Term<L, V>) -> Self {
         match term {
-            Term::Lit(l) => Ast::Lit(l),
-            Term::Var(v) => Ast::Var(v),
+            Term::Lit(l) => Self::Lit(l),
+            Term::Var(v) => Self::Var(v),
         }
     }
+}
+
+impl<L, V> From<Var<V>> for Ast<L, V> {
+    fn from(var: Var<V>) -> Self { Self::Var(var) }
 }
 
 impl<L, V> TryFrom<Ast<L, V>> for Term<L, V> {
@@ -51,7 +81,26 @@ impl<L, V> TryFrom<Ast<L, V>> for Term<L, V> {
     }
 }
 
-// TODO: test me
+// TODO: property test me
+impl<L, V: Eq + Hash> FreeVars<Var<V>> for Ast<L, V> {
+    fn free_vars_into<'a>(&'a self, set: &mut HashSet<&'a Var<V>>) {
+        match self {
+            Self::Lit(_) => (),
+            Self::Var(v) => {
+                set.insert(v);
+            },
+            Self::List(t, l) => {
+                t.free_vars_into(set);
+                l.free_vars_into(set);
+            },
+            Self::Dict(t, d) => {
+                t.free_vars_into(set);
+                d.free_vars_into(set);
+            },
+        }
+    }
+}
+
 impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> SubWith<Var<V>, Ast<L, V>> for Ast<L, V> {
     type Error = Error;
 
@@ -72,7 +121,7 @@ impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> SubWith<Var<V>, Ast<L, V>> for 
     }
 }
 
-// TODO: test me
+// TODO: property test me
 impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for Ast<L, V> {
     type Error = Error;
 
@@ -84,6 +133,7 @@ impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for As
     {
         match (self, rhs) {
             (Self::Lit(l), Self::Lit(r)) if l == r => UOk(sub),
+            (Self::Var(l), Self::Var(r)) if l == r => UOk(sub),
             (Self::Var(l), r) => match sub.get(l) {
                 Some(a) => a.unify_with(sub, rhs),
                 None => sub.with(l.clone(), r.clone()).into(),
@@ -103,7 +153,22 @@ impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for As
     }
 }
 
-// TODO: test me
+impl<L, V> From<Var<V>> for Term<L, V> {
+    fn from(var: Var<V>) -> Self { Self::Var(var) }
+}
+
+// TODO: property test me
+impl<L, V: Eq + Hash> FreeVars<Var<V>> for Term<L, V> {
+    fn free_vars_into<'a>(&'a self, set: &mut HashSet<&'a Var<V>>) {
+        match self {
+            Self::Lit(_) => (),
+            Self::Var(v) => {
+                set.insert(v);
+            },
+        }
+    }
+}
+
 impl<L: Clone, V: Clone + Eq + Hash> SubWith<Var<V>, Ast<L, V>> for Term<L, V> {
     type Error = Error;
 
@@ -122,7 +187,7 @@ impl<L: Clone, V: Clone + Eq + Hash> SubWith<Var<V>, Ast<L, V>> for Term<L, V> {
     }
 }
 
-// TODO: test me
+// TODO: property test me
 impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for Term<L, V> {
     type Error = Error;
 
@@ -134,6 +199,7 @@ impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for Te
     {
         match (self, rhs) {
             (Term::Lit(l), Term::Lit(r)) if l == r => UOk(sub),
+            (Term::Var(l), Term::Var(r)) if l == r => UOk(sub),
             (Term::Var(l), r) => match sub.get(l) {
                 Some(a) => match a.as_ref() {
                     Ast::Lit(l) => Term::Lit(l.clone()).unify_with(sub, rhs),
@@ -152,5 +218,28 @@ impl<L: Clone + Eq + Hash, V: Clone + Eq + Hash> Unify<Var<V>, Ast<L, V>> for Te
             },
             _ => Bottom,
         }
+    }
+}
+
+impl<V: Eq + Hash> FreeVars<Var<V>> for Var<V> {
+    fn free_vars_into<'a>(&'a self, set: &mut HashSet<&'a Var<V>>) { set.insert(self); }
+
+    // Overriding this for the world's slightest performance boost by hopefully
+    // using the size hint of the iterator
+    fn free_vars(&self) -> HashSet<&Var<V>> { iter::once(self).collect() }
+}
+
+impl VarSource {
+    pub fn new() -> Self { Self(Cell::new(0)) }
+}
+
+// TODO: property test me
+impl<V> FreshVars<Var<V>> for VarSource {
+    fn acquire(&self) -> Var<V> {
+        // let curr = self.0.update(|i| i + 1);
+        let curr = self.0.get();
+        self.0.set(curr + 1);
+
+        Var::Auto(curr)
     }
 }
