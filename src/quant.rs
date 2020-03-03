@@ -17,9 +17,7 @@ impl<V, T> For<V, T> {
 // TODO: unit test me
 // TODO: property test me
 impl<V: Clone + Eq + Hash, T: FreeVars<V>> For<V, T> {
-    pub fn gen(t: T) -> Self {
-        Self::gen_on(t.free_vars().into_iter().cloned().collect(), t)
-    }
+    pub fn gen(t: T) -> Self { Self::gen_on(t.free_vars().into_iter().cloned().collect(), t) }
 }
 
 // TODO: unit test me

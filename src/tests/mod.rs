@@ -1,7 +1,7 @@
 pub(self) mod mocks;
+pub(self) mod props;
 pub(self) mod strats;
 pub(self) mod units;
-pub(self) mod props;
 
 use crate::{ast::Error as AstError, prelude::*, sub::Sub};
 use std::{

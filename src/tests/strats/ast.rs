@@ -41,8 +41,13 @@ pub fn term(size: u32) -> impl Strategy<Value = Term> {
 }
 // TODO: this may be parameterizable
 pub fn sub(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Sub> {
-    prop::collection::hash_map(prop_oneof![
-        (0..size).prop_map(|v| Var::User(V(v))),
-        (0..size).prop_map(|v| Var::Auto(v)),
-    ], ast(levels, size, fanout), 0..size as usize).prop_map(Sub::from)
+    prop::collection::hash_map(
+        prop_oneof![
+            (0..size).prop_map(|v| Var::User(V(v))),
+            (0..size).prop_map(|v| Var::Auto(v)),
+        ],
+        ast(levels, size, fanout),
+        0..size as usize,
+    )
+    .prop_map(Sub::from)
 }
