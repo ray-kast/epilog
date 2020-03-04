@@ -19,7 +19,6 @@ pub trait SubWith<K: Eq + Hash, V>: Sized {
 }
 
 impl<K, V> Sub<K, V> {
-    // TODO: property test me on all sub tests
     pub fn top() -> Self { Self(HashMap::new()) }
 }
 
@@ -65,8 +64,6 @@ impl<K: Eq + Hash, V> FromIterator<(K, V)> for Sub<K, V> {
     }
 }
 
-// TODO: unit test me
-// TODO: property test me
 impl<K: Clone + Eq + Hash, V: SubWith<K, V, Error = E>, E> SubWith<K, V> for Sub<K, V> {
     type Error = E;
 
@@ -85,8 +82,6 @@ impl<K: Clone + Eq + Hash, V: SubWith<K, V, Error = E>, E> SubWith<K, V> for Sub
     }
 }
 
-// TODO: unit test me
-// TODO: property test me
 impl<'a, K: Clone + Eq + Hash, V: Clone + SubWith<K, V, Error = E>, E> SubWith<K, V>
     for CowSub<'a, K, V>
 {
@@ -97,8 +92,6 @@ impl<'a, K: Clone + Eq + Hash, V: Clone + SubWith<K, V, Error = E>, E> SubWith<K
     }
 }
 
-// TODO: unit test me
-// TODO: property test me
 impl<K: Eq + Hash, V, E, T: SubWith<K, V, Error = E>> SubWith<K, V> for Option<T> {
     type Error = E;
 
@@ -110,8 +103,6 @@ impl<K: Eq + Hash, V, E, T: SubWith<K, V, Error = E>> SubWith<K, V> for Option<T
     }
 }
 
-// TODO: unit test me
-// TODO: property test me
 impl<K: Eq + Hash, V, E, T: SubWith<K, V, Error = E>> SubWith<K, V> for Vec<T> {
     type Error = E;
 
@@ -120,8 +111,6 @@ impl<K: Eq + Hash, V, E, T: SubWith<K, V, Error = E>> SubWith<K, V> for Vec<T> {
     }
 }
 
-// TODO: unit test me
-// TODO: property test me
 impl<K: Eq + Hash, V, E, K2: Clone + Eq + Hash, V2: SubWith<K, V, Error = E>> SubWith<K, V>
     for HashMap<K2, V2>
 {

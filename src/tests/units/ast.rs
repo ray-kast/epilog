@@ -2,10 +2,7 @@ use crate::{
     dict,
     prelude::*,
     set, sub,
-    tests::{
-        mocks::{ast::*, lit::Lit as L, var::Var as V},
-        top,
-    },
+    tests::{mocks::ast::*, top},
     uok,
 };
 
@@ -261,9 +258,11 @@ fn unify_term() {
 fn freshvars_varsrc() {
     let src = VarSource::new();
 
-    assert_eq!(src.acquire(), Var::Auto(0));
-    assert_eq!(src.acquire(), Var::Auto(1));
-    assert_eq!(src.acquire(), Var::Auto(2));
-    assert_eq!(src.acquire(), Var::Auto(3));
-    assert_eq!(src.acquire(), Var::Auto(4));
+    let f = <VarSource as FreshVars<Var>>::acquire;
+
+    assert_eq!(f(&src), Var::Auto(0));
+    assert_eq!(f(&src), Var::Auto(1));
+    assert_eq!(f(&src), Var::Auto(2));
+    assert_eq!(f(&src), Var::Auto(3));
+    assert_eq!(f(&src), Var::Auto(4));
 }

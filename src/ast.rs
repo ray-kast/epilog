@@ -41,7 +41,7 @@ pub enum Error {
 }
 
 // TODO: unit test me
-// TODO: property test m
+// TODO: property test me
 impl<L: Eq + Hash, V: Eq + Hash> PartialEq<Ast<L, V>> for Ast<L, V> {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
@@ -81,7 +81,6 @@ impl<L, V> TryFrom<Ast<L, V>> for Term<L, V> {
     }
 }
 
-// TODO: property test me
 impl<L, V: Eq + Hash> FreeVars<Var<V>> for Ast<L, V> {
     fn free_vars_into<'a>(&'a self, set: &mut HashSet<&'a Var<V>>) {
         match self {
@@ -157,7 +156,6 @@ impl<L, V> From<Var<V>> for Term<L, V> {
     fn from(var: Var<V>) -> Self { Self::Var(var) }
 }
 
-// TODO: property test me
 impl<L, V: Eq + Hash> FreeVars<Var<V>> for Term<L, V> {
     fn free_vars_into<'a>(&'a self, set: &mut HashSet<&'a Var<V>>) {
         match self {
@@ -242,4 +240,12 @@ impl<V> FreshVars<Var<V>> for VarSource {
 
         Var::Auto(curr)
     }
+}
+
+impl<L, V> FreshVars<Term<L, V>> for VarSource {
+    fn acquire(&self) -> Term<L, V> { <Self as FreshVars<Var<V>>>::acquire(self).into() }
+}
+
+impl<L, V> FreshVars<Ast<L, V>> for VarSource {
+    fn acquire(&self) -> Ast<L, V> { <Self as FreshVars<Var<V>>>::acquire(self).into() }
 }

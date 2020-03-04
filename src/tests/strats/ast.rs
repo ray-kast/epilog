@@ -1,10 +1,12 @@
 use crate::{ast, sub};
 use proptest::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub use ast::VarSource;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct L(pub u32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct V(pub u32);
 
 pub type Ast = ast::Ast<L, V>;
@@ -13,7 +15,13 @@ pub type Var = ast::Var<V>;
 
 pub type Sub = sub::Sub<Var, Ast>;
 
-pub fn ast(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Ast> {
+pub fn ast_from<T: Fn(u32) -> S, S: Strategy<Value = Term> + 'static>(
+    term: T,
+    levels: u32,
+    size: u32,
+    fanout: u32,
+) -> impl Strategy<Value = Ast>
+{
     let leaf = term(size).prop_map(Ast::from);
 
     leaf.prop_recursive(levels, size, fanout, move |inner| {
@@ -32,6 +40,21 @@ pub fn ast(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Ast> {
     })
 }
 
+pub fn ast(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Ast> {
+    ast_from(|s| term(s), levels, size, fanout)
+}
+
+pub fn ast_safe(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Ast> {
+    ast_from(|s| term_safe(s), levels, size, fanout)
+}
+
+pub fn term_safe(size: u32) -> impl Strategy<Value = Term> {
+    prop_oneof![
+        (0..size).prop_map(|l| Term::Lit(L(l))),
+        (0..size).prop_map(|v| Term::Var(Var::User(V(v)))),
+    ]
+}
+
 pub fn term(size: u32) -> impl Strategy<Value = Term> {
     prop_oneof![
         2 => (0..size).prop_map(|l| Term::Lit(L(l))),
@@ -39,6 +62,7 @@ pub fn term(size: u32) -> impl Strategy<Value = Term> {
         1 => (0..size).prop_map(|v| Term::Var(Var::Auto(v))),
     ]
 }
+
 // TODO: this may be parameterizable
 pub fn sub(levels: u32, size: u32, fanout: u32) -> impl Strategy<Value = Sub> {
     prop::collection::hash_map(

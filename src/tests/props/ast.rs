@@ -3,6 +3,11 @@ use proptest::prelude::*;
 
 proptest! {
     #[test]
+    fn nullsub_ast(ast in ast(8, 30, 10)) {
+        prop_assert_eq!(ast.sub(&Sub::top()), Ok(ast));
+    }
+
+    #[test]
     fn sub_ast_list(
         term in term(30),
         vec in prop::collection::vec(ast(8, 30, 10), 0..30),
